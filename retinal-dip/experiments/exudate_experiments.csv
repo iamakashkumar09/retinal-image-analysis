@@ -1,0 +1,6 @@
+image,vessel_density,num_candidates,exudate_tp,exudate_fp,exudate_fn,exudate_tn,exudate_dice,exudate_iou,exudate_sensitivity,exudate_specificity,exudate_precision,exudate_f1
+IDRiD_001,6.3122,6,0,10284,19495,1496749,0.0,0.0,0.0,0.9932,0.0,0.0
+IDRiD_002,6.8641,14,138,15991,18400,1491999,0.008,0.004,0.0074,0.9894,0.0086,0.008
+IDRiD_003,7.3507,10,0,12096,24872,1489560,0.0,0.0,0.0,0.9919,0.0,0.0
+IDRiD_004,5.8493,12,138,17061,13221,1496108,0.009,0.0045,0.0103,0.9887,0.008,0.009
+IDRiD_005,6.345,27,0,20055,11186,1495287,0.0,0.0,0.0,0.9868,0.0,0.0
