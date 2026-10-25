@@ -7,10 +7,74 @@
 [![Streamlit](https://img.shields.io/badge/Streamlit-1.x-red)](https://streamlit.io)
 [![License](https://img.shields.io/badge/License-Academic-lightgrey)]()
 
+
 > ⚠️ **RESEARCH / DECISION-SUPPORT PROTOTYPE — NOT A MEDICAL DIAGNOSIS TOOL.**
 > All outputs are candidate regions only. Clinical review by a qualified ophthalmologist is required.
 
 ---
+
+## ⚡ Quick Start — Setup & Run
+
+### 1. Clone the repository
+```bash
+git clone https://github.com/iamakashkumar09/retinal-image-analysis.git
+cd retinal-image-analysis
+```
+
+### 2. Create a Python virtual environment
+```bash
+cd retinal-dip
+python3 -m venv venv
+source venv/bin/activate        # Linux / macOS
+# venv\Scripts\activate         # Windows
+```
+
+### 3. Install all dependencies
+```bash
+pip install -r requirements.txt
+```
+
+### 4. Generate synthetic test images *(skip if you have real DRIVE / IDRiD data)*
+```bash
+python generate_synthetic_data.py
+```
+This creates realistic synthetic retinal images in `data/` so you can test the full pipeline immediately without downloading any external datasets.
+
+### 5. Launch the web app
+```bash
+streamlit run app.py
+```
+Open your browser at **http://localhost:8501**
+
+### 6. *(Optional)* Run via Command Line
+```bash
+# Analyse a single image and produce a PDF report
+python main.py --image data/DRIVE/training/images/001_training.tif \
+               --fov   data/DRIVE/training/fov_masks/001_training_fov.png \
+               --vessel-gt data/DRIVE/training/vessel_masks/001_training_vessel.png \
+               --report
+
+# Batch-process all DRIVE training images
+python main.py --batch-drive
+
+# Batch-process all IDRiD images
+python main.py --batch-idrid
+
+# Run ablation experiments E1–E5
+python main.py --experiment
+
+# Generate experiment figures (charts saved to experiments/figures/)
+python plot_experiments.py
+```
+
+### 7. *(Optional)* Run unit tests
+```bash
+python test_pipeline.py
+# Expected output: 26/26 PASS ✅
+```
+
+---
+
 
 ## 🎯 What Does This Project Do? (Simple Answer)
 
