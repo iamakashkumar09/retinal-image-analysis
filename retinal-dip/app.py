@@ -365,13 +365,13 @@ with tab_upload:
         st.markdown("**FOV Mask** *(optional — auto-estimated if omitted)*")
         fov_file = st.file_uploader(
             "FOV mask", type=["png", "bmp", "tif"],
-            key="fov_mask", label_visibility="collapsed",
+            key="fov_mask_upload", label_visibility="collapsed",
         )
 
         st.markdown("**Optic-Disc Mask** *(optional — suppresses disc FPs in evaluation mode)*")
         disc_file = st.file_uploader(
             "Optic-disc mask", type=["png", "bmp", "tif"],
-            key="disc_mask", label_visibility="collapsed",
+            key="disc_mask_upload", label_visibility="collapsed",
         )
 
         fov_mask_arr  = None
