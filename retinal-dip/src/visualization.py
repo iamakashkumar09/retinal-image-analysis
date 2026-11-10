@@ -51,20 +51,22 @@ def make_overlay(image: np.ndarray,
     Returns:
         RGB overlay image (H, W, 3) uint8.
     """
-    overlay = image.copy().astype(np.float32)
+    overlay = image.astype(np.float32, copy=True)
 
     # Apply vessel tint
     vessel_px = vessel_mask > 0
-    for c, col in enumerate(VESSEL_COLOR):
-        overlay[vessel_px, c] = (
-            (1 - vessel_alpha) * overlay[vessel_px, c] + vessel_alpha * col
+    if np.any(vessel_px):
+        vessel_col = np.array(VESSEL_COLOR, dtype=np.float32)
+        overlay[vessel_px] = (
+            (1.0 - vessel_alpha) * overlay[vessel_px] + vessel_alpha * vessel_col
         )
 
     # Apply exudate tint on top
     exudate_px = exudate_mask > 0
-    for c, col in enumerate(EXUDATE_COLOR):
-        overlay[exudate_px, c] = (
-            (1 - exudate_alpha) * overlay[exudate_px, c] + exudate_alpha * col
+    if np.any(exudate_px):
+        exudate_col = np.array(EXUDATE_COLOR, dtype=np.float32)
+        overlay[exudate_px] = (
+            (1.0 - exudate_alpha) * overlay[exudate_px] + exudate_alpha * exudate_col
         )
 
     return np.clip(overlay, 0, 255).astype(np.uint8)

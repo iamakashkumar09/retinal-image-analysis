@@ -2,6 +2,23 @@ import axios from "axios";
 
 const BASE = "/api/py";
 
+export function getApiErrorMessage(err: unknown, fallback: string): string {
+  if (axios.isAxiosError(err)) {
+    const data = err.response?.data;
+    if (data && typeof data === "object" && "detail" in data && typeof data.detail === "string" && data.detail.trim()) {
+      return data.detail;
+    }
+    if (err.response?.status === 500 && typeof data === "string" && data.includes("Internal Server Error")) {
+      return "Backend proxy error — make sure the Python FastAPI server (port 8000) is running.";
+    }
+    if (!err.response) {
+      return "Cannot reach the API server. Make sure both Next.js and FastAPI (port 8000) are running.";
+    }
+    return err.message;
+  }
+  return err instanceof Error ? err.message : fallback;
+}
+
 export interface AnalysisParams {
   gaborSigma: number;
   gaborLambda: number;

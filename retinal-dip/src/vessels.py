@@ -19,6 +19,9 @@ Key DIP concepts:
     BANK of 12 orientations (0° – 165°) covers all vessel directions.
 """
 
+import os
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
 import cv2
 import numpy as np
 from .morphology import (make_rect_kernel, morpho_open_close, apply_fov_mask)
@@ -27,6 +30,28 @@ from .morphology import (make_rect_kernel, morpho_open_close, apply_fov_mask)
 # ─────────────────────────────────────────────
 # Gabor bank
 # ─────────────────────────────────────────────
+
+def _gabor_single_orientation(image_f: np.ndarray,
+                               ksize: int,
+                               sigma: float,
+                               theta: float,
+                               lambd: float,
+                               gamma: float,
+                               psi: float) -> np.ndarray:
+    """Apply a single oriented Gabor kernel and return its absolute response."""
+    kernel = cv2.getGaborKernel(
+        (ksize, ksize),
+        sigma=sigma,
+        theta=theta,
+        lambd=lambd,
+        gamma=gamma,
+        psi=psi,
+        ktype=cv2.CV_32F,
+    )
+    response = cv2.filter2D(image_f, cv2.CV_32F, kernel)
+    np.abs(response, out=response)                   # sign-invariant
+    return response
+
 
 def gabor_max_response(image: np.ndarray,
                         ksize: int = 21,
@@ -59,20 +84,27 @@ def gabor_max_response(image: np.ndarray,
     image_f = image.astype(np.float32)
     max_response = np.zeros_like(image_f)
 
-    for i in range(n_orientations):
-        theta = i * np.pi / n_orientations          # 0, 15°, 30°, … 165°
-        kernel = cv2.getGaborKernel(
-            (ksize, ksize),
-            sigma=sigma,
-            theta=theta,
-            lambd=lambd,
-            gamma=gamma,
-            psi=psi,
-            ktype=cv2.CV_32F,
-        )
-        response = cv2.filter2D(image_f, cv2.CV_32F, kernel)
-        response = np.abs(response)                  # sign-invariant
-        max_response = np.maximum(max_response, response)
+    # OpenCV filter2D releases the GIL, so parallelising orientations speeds up large images
+    workers = min(n_orientations, max(1, os.cpu_count() or 2), 4)
+    if workers <= 1 or image_f.size < 250_000:
+        for i in range(n_orientations):
+            theta = i * np.pi / n_orientations      # 0, 15°, 30°, … 165°
+            response = _gabor_single_orientation(
+                image_f, ksize, sigma, theta, lambd, gamma, psi
+            )
+            np.maximum(max_response, response, out=max_response)
+    else:
+        with ThreadPoolExecutor(max_workers=workers) as pool:
+            futures = [
+                pool.submit(
+                    _gabor_single_orientation,
+                    image_f, ksize, sigma, i * np.pi / n_orientations,
+                    lambd, gamma, psi,
+                )
+                for i in range(n_orientations)
+            ]
+            for fut in as_completed(futures):
+                np.maximum(max_response, fut.result(), out=max_response)
 
     return max_response
 

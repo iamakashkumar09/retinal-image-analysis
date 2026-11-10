@@ -255,69 +255,42 @@ def generate_report(result: dict,
         story.append(tbl)
         story.append(Spacer(1, 0.3 * cm))
 
-    # ── Section: Quantitative measurements ────────────────────────
-    story.append(Paragraph("2. Quantitative Measurements", heading_style))
+    # ── Section: Summary measurements ─────────────────────────────
+    story.append(Paragraph("2. Summary Measurements", heading_style))
 
     vessel_density = result.get("vessel_density", 0.0)
     regions        = result.get("regions", [])
     num_candidates = len(regions)
-    total_area     = sum(r["area"] for r in regions)
-    largest_area   = max((r["area"] for r in regions), default=0)
 
     meas_data = [
-        ["Metric", "Value"],
-        ["Vessel density (% of FOV)", f"{vessel_density:.2f}%"],
-        ["Candidate regions detected", str(num_candidates)],
-        ["Total candidate area (px)", str(total_area)],
-        ["Largest candidate area (px)", str(largest_area)],
+        ["Measurement", "Value"],
+        ["Blood vessel coverage (% of retina)", f"{vessel_density:.1f}%"],
+        ["Bright spots flagged (candidates)", str(num_candidates)],
     ]
     story.append(_style_table(meas_data, [page_w * 0.6, page_w * 0.4]))
     story.append(Spacer(1, 0.4 * cm))
 
-    # ── Section: Candidate region table ───────────────────────────
-    if regions:
-        story.append(Paragraph("3. Candidate Region Table", heading_style))
-        reg_header = ["ID", "Area (px)", "Centroid (x, y)", "Bounding Box"]
-        reg_rows   = [reg_header]
-        for r in regions[:50]:                      # cap at 50 rows in PDF
-            cx, cy = r["centroid"]
-            x, y, w, h = r["bbox"]
-            reg_rows.append([
-                str(r["id"]),
-                str(r["area"]),
-                f"({cx:.1f}, {cy:.1f})",
-                f"[{x}, {y}, {w}×{h}]",
-            ])
-        col_w = page_w / 4
-        story.append(_style_table(reg_rows, [col_w] * 4))
-        story.append(Spacer(1, 0.4 * cm))
-
     # ── Section: Evaluation metrics ────────────────────────────────
     if metrics:
-        story.append(Paragraph("4. Evaluation Metrics", heading_style))
+        story.append(Paragraph("3. Accuracy Summary", heading_style))
         met_data = [
-            ["Metric", "Value", "Description"],
-            ["Dice",        f"{metrics.get('dice', 0):.4f}",
-             "2·TP / (2·TP + FP + FN)"],
-            ["IoU",         f"{metrics.get('iou', 0):.4f}",
-             "TP / (TP + FP + FN)"],
-            ["Sensitivity", f"{metrics.get('sensitivity', 0):.4f}",
-             "TP / (TP + FN) — recall"],
-            ["Specificity", f"{metrics.get('specificity', 0):.4f}",
-             "TN / (TN + FP)"],
-            ["Precision",   f"{metrics.get('precision', 0):.4f}",
-             "TP / (TP + FP)"],
-            ["F1",          f"{metrics.get('f1', 0):.4f}",
-             "Harmonic mean of precision & recall"],
+            ["Metric", "Score", "Meaning"],
+            ["Overlap Score (Dice)", f"{metrics.get('dice', 0) * 100:.1f}%",
+             "Overall match with ground truth"],
+            ["Detection Rate (Sensitivity)", f"{metrics.get('sensitivity', 0) * 100:.1f}%",
+             "How many real features were found"],
+            ["Background Accuracy (Specificity)", f"{metrics.get('specificity', 0) * 100:.1f}%",
+             "How well normal retina was ignored"],
         ]
         story.append(_style_table(
             met_data,
-            [page_w * 0.25, page_w * 0.2, page_w * 0.55],
+            [page_w * 0.35, page_w * 0.15, page_w * 0.50],
         ))
         story.append(Spacer(1, 0.4 * cm))
 
     # ── Section: Limitations ──────────────────────────────────────
-    story.append(Paragraph("5. Limitations", heading_style))
+    lim_num = "4" if metrics else "3"
+    story.append(Paragraph(f"{lim_num}. Limitations", heading_style))
     limitations = [
         "• This system uses classical DIP algorithms; it is not trained "
         "or validated as a clinical tool.",

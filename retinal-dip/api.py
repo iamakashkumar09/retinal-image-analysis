@@ -19,6 +19,7 @@ import io
 import os
 import sys
 import tempfile
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Optional
 
@@ -70,7 +71,7 @@ def _decode_mask(upload: UploadFile) -> np.ndarray:
     return (gray > 127).astype(np.uint8) * 255
 
 
-def _arr_to_b64(arr: np.ndarray) -> str:
+def _arr_to_b64(arr: Optional[np.ndarray]) -> str:
     """Encode a numpy image (grayscale or RGB) to a PNG base64 string."""
     if arr is None:
         return ""
@@ -91,6 +92,17 @@ def _arr_to_b64(arr: np.ndarray) -> str:
     return base64.b64encode(buf.tobytes()).decode("utf-8")
 
 
+def _encode_result_images_b64(image_map: dict[str, Optional[np.ndarray]]) -> dict[str, str]:
+    """Encode multiple result images to PNG base64 strings in parallel."""
+    keys = list(image_map.keys())
+    workers = min(len(keys), max(1, os.cpu_count() or 2), 4)
+    if workers <= 1:
+        return {k: _arr_to_b64(image_map[k]) for k in keys}
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        encoded = list(pool.map(_arr_to_b64, (image_map[k] for k in keys)))
+    return dict(zip(keys, encoded))
+
+
 # ── Endpoints ────────────────────────────────────────────────────────
 
 @app.get("/health")
@@ -99,7 +111,7 @@ def health():
 
 
 @app.post("/analyze")
-async def analyze(
+def analyze(
     image: UploadFile = File(...),
     fov_mask: Optional[UploadFile] = File(None),
     disc_mask: Optional[UploadFile] = File(None),
@@ -160,6 +172,20 @@ async def analyze(
             "bbox": [int(x) for x in r["bbox"]],
         })
 
+    encoded_images = _encode_result_images_b64({
+        "original_b64":      result["original"],
+        "vessel_mask_b64":   result["vessel_mask"],
+        "exudate_mask_b64":  result["exudate_mask"],
+        "overlay_b64":       result["overlay"],
+        "green_b64":         result.get("green"),
+        "clahe_b64":         result.get("clahe"),
+        "corrected_b64":     result.get("corrected"),
+        "L_b64":             result.get("L"),
+        "L_clahe_b64":       result.get("L_clahe"),
+        "response_norm_b64": result.get("response_norm"),
+        "tophat_b64":        result.get("tophat"),
+    })
+
     return {
         "vessel_density": float(result["vessel_density"]),
         "region_stats": {
@@ -168,22 +194,12 @@ async def analyze(
         },
         "regions": regions_out,
         # Images as base64 PNG
-        "original_b64":      _arr_to_b64(result["original"]),
-        "vessel_mask_b64":   _arr_to_b64(result["vessel_mask"]),
-        "exudate_mask_b64":  _arr_to_b64(result["exudate_mask"]),
-        "overlay_b64":       _arr_to_b64(result["overlay"]),
-        "green_b64":         _arr_to_b64(result.get("green")),
-        "clahe_b64":         _arr_to_b64(result.get("clahe")),
-        "corrected_b64":     _arr_to_b64(result.get("corrected")),
-        "L_b64":             _arr_to_b64(result.get("L")),
-        "L_clahe_b64":       _arr_to_b64(result.get("L_clahe")),
-        "response_norm_b64": _arr_to_b64(result.get("response_norm")),
-        "tophat_b64":        _arr_to_b64(result.get("tophat")),
+        **encoded_images,
     }
 
 
 @app.post("/evaluate")
-async def evaluate(
+def evaluate(
     pred_b64: str = Form(...),
     gt_mask: UploadFile = File(...),
     mask_type: str = Form("vessel"),
@@ -214,7 +230,7 @@ async def evaluate(
 
 
 @app.post("/report")
-async def report(payload: dict):
+def report(payload: dict):
     """
     Generate a PDF report and return it as binary.
     Expects JSON body: { "result": {...analyze output...}, "image_id": "..." }

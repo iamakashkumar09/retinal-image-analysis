@@ -23,7 +23,6 @@ from pathlib import Path
 
 import cv2
 import numpy as np
-import pandas as pd
 import streamlit as st
 
 # ── Import project modules ──────────────────────────────────────────
@@ -257,34 +256,40 @@ html, body, [class*="css"] {
 # ─────────────────────────────────────────────
 
 with st.sidebar:
-    st.markdown("## ⚙️ Algorithm Parameters")
+    st.markdown("## 🩺 How It Works")
+    st.markdown("""
+    1. **Green Channel + CLAHE** — Boosts blood vessel contrast
+    2. **Gabor Filter Bank** — Detects blood vessels at 12 angles
+    3. **White Top-Hat** — Highlights bright exudate spots
+    """)
     st.markdown("---")
 
-    st.markdown("### 🩸 Vessel Branch (Gabor)")
-    gabor_sigma  = st.slider("Gabor σ (sigma)",   1.0, 8.0, 4.0, 0.5,
-                              help="Gaussian envelope spread")
-    gabor_lambda = st.slider("Gabor λ (lambda)",  4.0, 16.0, 10.0, 1.0,
-                              help="Sinusoidal wavelength")
-    gabor_gamma  = st.slider("Gabor γ (gamma)",   0.3, 1.2, 0.5, 0.1,
-                              help="Aspect ratio (elongation)")
-    n_orientations = st.select_slider("Orientations", [6, 8, 12, 16, 18], 12,
-                                       help="Number of Gabor filter angles")
-    vessel_morph = st.slider("Vessel morph kernel", 1, 7, 3, 2,
-                              help="Morphological cleanup kernel size")
+    with st.expander("⚙️ Advanced Filter Settings (Optional)", expanded=False):
+        st.markdown("#### 🩸 Vessel Branch (Gabor)")
+        gabor_sigma  = st.slider("Gabor σ (sigma)",   1.0, 8.0, 4.0, 0.5,
+                                  help="Gaussian envelope spread")
+        gabor_lambda = st.slider("Gabor λ (lambda)",  4.0, 16.0, 10.0, 1.0,
+                                  help="Sinusoidal wavelength")
+        gabor_gamma  = st.slider("Gabor γ (gamma)",   0.3, 1.2, 0.5, 0.1,
+                                  help="Aspect ratio (elongation)")
+        n_orientations = st.select_slider("Orientations", [6, 8, 12, 16, 18], 12,
+                                           help="Number of Gabor filter angles")
+        vessel_morph = st.slider("Vessel morph kernel", 1, 7, 3, 2,
+                                  help="Morphological cleanup kernel size")
 
-    st.markdown("---")
-    st.markdown("### 🟡 Exudate Branch")
-    tophat_size  = st.slider("Top-hat kernel", 7, 31, 15, 2,
-                              help="Structuring element size for white top-hat")
-    exudate_morph = st.slider("Exudate morph kernel", 1, 7, 3, 2)
-    min_area     = st.slider("Min candidate area (px)", 5, 100, 20, 5,
-                              help="Discard candidates smaller than this")
+        st.markdown("---")
+        st.markdown("#### 🟡 Exudate Branch")
+        tophat_size  = st.slider("Top-hat kernel", 7, 31, 15, 2,
+                                  help="Structuring element size for white top-hat")
+        exudate_morph = st.slider("Exudate morph kernel", 1, 7, 3, 2)
+        min_area     = st.slider("Min candidate area (px)", 5, 100, 20, 5,
+                                  help="Discard candidates smaller than this")
 
-    st.markdown("---")
-    st.markdown("### 🔧 Preprocessing")
-    clahe_clip   = st.slider("CLAHE clip limit", 0.5, 5.0, 2.0, 0.5)
-    bg_sigma     = st.slider("BG correction σ",  5.0, 30.0, 15.0, 1.0,
-                              help="Gaussian sigma for background subtraction")
+        st.markdown("---")
+        st.markdown("#### 🔧 Preprocessing")
+        clahe_clip   = st.slider("CLAHE clip limit", 0.5, 5.0, 2.0, 0.5)
+        bg_sigma     = st.slider("BG correction σ",  5.0, 30.0, 15.0, 1.0,
+                                  help="Gaussian sigma for background subtraction")
 
     st.markdown("---")
     st.caption("🔬 Research prototype | Not a medical diagnostic tool")
@@ -441,29 +446,20 @@ with tab_results:
         st.info("👆 Upload an image and click **Analyze Retina** to see results.")
     else:
         result = st.session_state["result"]
-        regions = result["regions"]
 
-        # ── Quick stats row ───────────────────────────────────────
-        st.markdown('<p class="section-header">Quantitative Measurements</p>',
+        # ── Simple summary row ────────────────────────────────────
+        st.markdown('<p class="section-header">Quick Summary</p>',
                     unsafe_allow_html=True)
 
-        m1, m2, m3, m4 = st.columns(4)
+        m1, m2 = st.columns(2)
         with m1:
-            st.metric("🩸 Vessel Density",
-                       f"{result['vessel_density']:.2f}%",
-                       help="Percentage of FOV pixels classified as vessel")
+            st.metric("🩸 Blood Vessel Coverage",
+                       f"{result['vessel_density']:.1f}%",
+                       help="Percentage of the retina covered by blood vessels (healthy range is ~4–7%)")
         with m2:
-            st.metric("🟡 Candidates",
+            st.metric("🟡 Bright Spots Flagged",
                        result["region_stats"]["count"],
-                       help="Number of retained exudate candidate regions")
-        with m3:
-            st.metric("📐 Largest Region",
-                       f"{result['region_stats']['largest_area']} px",
-                       help="Area of the largest candidate region")
-        with m4:
-            st.metric("📊 Total Area",
-                       f"{result['region_stats']['total_area']} px",
-                       help="Combined area of all candidate regions")
+                       help="Number of bright candidate regions detected for review")
 
         st.markdown("---")
 
@@ -500,27 +496,10 @@ with tab_results:
         """, unsafe_allow_html=True)
         st.image(result["overlay"], use_container_width=True,
                  caption="Combined vessel + exudate candidate overlay")
-
-        # ── Candidate region table ────────────────────────────────
-        if regions:
-            st.markdown("---")
-            st.markdown('<p class="section-header">Candidate Region Table</p>',
-                        unsafe_allow_html=True)
-            df_regions = pd.DataFrame([{
-                "ID":             r["id"],
-                "Area (px)":      r["area"],
-                "Centroid X":     f"{r['centroid'][0]:.1f}",
-                "Centroid Y":     f"{r['centroid'][1]:.1f}",
-                "BBox X":         r["bbox"][0],
-                "BBox Y":         r["bbox"][1],
-                "Width":          r["bbox"][2],
-                "Height":         r["bbox"][3],
-            } for r in regions])
-            st.dataframe(df_regions, use_container_width=True, height=260)
-            st.caption(
-                "⚠️ Candidate regions only — not confirmed clinical lesions. "
-                "Professional clinical review is required."
-            )
+        st.caption(
+            "⚠️ Candidate regions only — not confirmed clinical lesions. "
+            "Professional clinical review is required."
+        )
 
 
 # ─────────────────────────────────────────────
@@ -589,35 +568,27 @@ with tab_eval:
                 metrics = calculate_metrics(pred, gt_img, fov_mask=fov)
 
                 st.markdown(f"#### {task_name}")
-                mc1, mc2, mc3, mc4, mc5, mc6 = st.columns(6)
-                for col, (key, label) in zip(
-                    [mc1, mc2, mc3, mc4, mc5, mc6],
-                    [("dice", "Dice"), ("iou", "IoU"),
-                     ("sensitivity", "Sensitivity"), ("specificity", "Specificity"),
-                     ("precision", "Precision"), ("f1", "F1")],
+                mc1, mc2, mc3 = st.columns(3)
+                for col, (key, label, desc) in zip(
+                    [mc1, mc2, mc3],
+                    [
+                        ("dice", "Overlap Score (Dice)", "Overall match with ground truth"),
+                        ("sensitivity", "Detection Rate (Sensitivity)", "How many real features were found"),
+                        ("specificity", "Background Accuracy (Specificity)", "How well normal retina was ignored"),
+                    ],
                 ):
                     with col:
                         val = metrics[key]
                         color = "#4ade80" if val > 0.7 else "#facc15" if val > 0.4 else "#f87171"
                         st.markdown(f"""
-                        <div class="metric-card">
+                        <div class="metric-card" title="{desc}">
                             <div class="label">{label}</div>
-                            <div class="value" style="color:{color}">{val:.4f}</div>
+                            <div class="value" style="color:{color}">{val * 100:.1f}%</div>
                         </div>
                         """, unsafe_allow_html=True)
 
                 # Store for report
                 st.session_state[f"metrics_{mask_key}"] = metrics
-
-                # Confusion matrix
-                with st.expander("Confusion Matrix"):
-                    cm_data = {
-                        "":              ["Pred +", "Pred −"],
-                        "GT +":          [metrics["tp"], metrics["fn"]],
-                        "GT −":          [metrics["fp"], metrics["tn"]],
-                    }
-                    st.dataframe(pd.DataFrame(cm_data).set_index(""),
-                                 use_container_width=True)
 
                 st.markdown("")
 
@@ -737,9 +708,8 @@ with tab_report:
             "✅ Blood-vessel segmentation mask",
             "✅ Candidate exudate mask",
             "✅ Combined overlay image",
-            "✅ Candidate-region table (area, centroid, bounding box)",
-            "✅ Vessel density and region statistics",
-            "✅ Evaluation metrics (when ground truth provided)",
+            "✅ Simple summary (vessel coverage % and spots flagged)",
+            "✅ Accuracy summary (when ground truth provided)",
             "✅ System limitations and non-diagnostic disclaimer",
         ]
         for item in report_contents:

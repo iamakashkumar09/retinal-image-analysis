@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Loader2 } from "lucide-react";
 import DropZone from "@/components/ui/DropZone";
-import { evaluateMask, Metrics, AnalysisResult } from "@/lib/api";
+import { evaluateMask, Metrics, AnalysisResult, getApiErrorMessage } from "@/lib/api";
 import { metricColor } from "@/lib/utils";
 
 interface EvaluationTabProps {
@@ -49,7 +49,7 @@ export default function EvaluationTab({ result }: EvaluationTabProps) {
       if (type === "vessel") setVesselMetrics(metrics);
       else setExudateMetrics(metrics);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Evaluation failed");
+      setError(getApiErrorMessage(err, "Evaluation failed"));
     } finally {
       setLoading(null);
     }

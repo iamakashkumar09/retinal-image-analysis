@@ -95,7 +95,7 @@ def detect_exudates(L_clahe: np.ndarray,
     )
 
     # ── Step 7: Area filtering and region table ─────────────────────
-    final_mask = np.zeros_like(candidate_clean)
+    keep_lut = np.zeros(num_labels, dtype=np.uint8)
     regions = []
 
     for i in range(1, num_labels):                   # skip background (0)
@@ -110,13 +110,15 @@ def detect_exudates(L_clahe: np.ndarray,
         cx = float(centroids[i][0])
         cy = float(centroids[i][1])
 
-        final_mask[labels == i] = 255
+        keep_lut[i] = 255
         regions.append({
             "id":       len(regions) + 1,
             "area":     area,
             "bbox":     [x, y, w, h],
             "centroid": [cx, cy],
         })
+
+    final_mask = keep_lut[labels]
 
     return {
         "tophat":           tophat,

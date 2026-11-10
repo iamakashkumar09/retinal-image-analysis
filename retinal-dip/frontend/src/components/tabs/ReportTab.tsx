@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { FileText, Loader2, Download } from "lucide-react";
-import { generateReport, AnalysisResult } from "@/lib/api";
+import { generateReport, AnalysisResult, getApiErrorMessage } from "@/lib/api";
 import { downloadBlob } from "@/lib/utils";
 
 interface ReportTabProps {
@@ -46,7 +46,7 @@ export default function ReportTab({ result }: ReportTabProps) {
       downloadBlob(blob, `retinal_analysis_${imageId}.pdf`);
       setSuccess(true);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Report generation failed.");
+      setError(getApiErrorMessage(err, "Report generation failed."));
     } finally {
       setLoading(false);
     }

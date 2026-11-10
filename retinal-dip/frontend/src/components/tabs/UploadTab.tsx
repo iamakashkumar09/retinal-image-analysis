@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Loader2, Zap, AlertTriangle } from "lucide-react";
 import DropZone from "@/components/ui/DropZone";
-import { analyzeRetina, AnalysisResult } from "@/lib/api";
+import { analyzeRetina, AnalysisResult, getApiErrorMessage } from "@/lib/api";
 import { AlgoParams } from "@/components/ui/Sidebar";
 import { b64ToSrc } from "@/lib/utils";
 
@@ -62,8 +62,7 @@ export default function UploadTab({ params, onResult }: UploadTabProps) {
       const result = await analyzeRetina(imageFile, params, fovFile, discFile);
       onResult(result);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Analysis failed. Is the Python API running?";
-      setError(msg);
+      setError(getApiErrorMessage(err, "Analysis failed. Is the Python API running?"));
     } finally {
       setLoading(false);
       setStepIdx(-1);
